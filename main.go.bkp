@@ -1,0 +1,104 @@
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+)
+
+func main() {
+	//fmt.Println("Start connect to DB...")
+	////db.Connect()
+	//
+	//app := fiber.New()
+	//
+	//app.Get("/test", func(ctx *fiber.Ctx) error {
+	//	return ctx.Status(200).JSON(fiber.Map{
+	//		"success": true,
+	//		"message": "An API call  is made successfully!!!",
+	//	})
+	//})
+	//
+	//routes.Setup(app)
+	//app.Listen(":9000")
+
+	username := "exportdev"
+	password := "repDEV2023!"
+
+	loginURL := "https://my.callmanager.tel/login.html"
+	downloadURL := "https://my.callmanager.tel/portlet/export/voip/autoconfigDeviceList.html?6578706f7274=1&vs=8&d-3147565-e=1#AutoconfigDeviceList"
+
+	// Create a new HTTP client
+	client := &http.Client{}
+
+	// Prepare the login form data
+	loginData := url.Values{}
+	loginData.Set("username", username)
+	loginData.Set("password", password)
+
+	// Perform the login request
+	loginRequest, err := http.NewRequest("GET", loginURL, nil)
+	if err != nil {
+		fmt.Printf("Failed to create login request: %s\n", err)
+		return
+	}
+	loginRequest.PostForm = loginData
+
+	// Send the login request
+	loginResponse, err := client.Do(loginRequest)
+	if err != nil {
+		fmt.Printf("Failed to send login request: %s\n", err)
+		return
+	}
+	defer loginResponse.Body.Close()
+
+	// Check if the login was successful
+	if loginResponse.StatusCode != http.StatusOK {
+		fmt.Println("Login failed")
+		return
+	}
+
+	// Prepare the download request
+	downloadRequest, err := http.NewRequest("GET", downloadURL, nil)
+	if err != nil {
+		fmt.Printf("Failed to create download request: %s\n", err)
+		return
+	}
+
+	// Set the necessary cookies from the login response
+	for _, cookie := range loginResponse.Cookies() {
+		downloadRequest.AddCookie(cookie)
+	}
+
+	// Send the download request
+	downloadResponse, err := client.Do(downloadRequest)
+	if err != nil {
+		fmt.Printf("Failed to send download request: %s\n", err)
+		return
+	}
+	defer downloadResponse.Body.Close()
+
+	// Check if the download was successful
+	if downloadResponse.StatusCode != http.StatusOK {
+		fmt.Println("Download failed")
+		return
+	}
+
+	// Read the CSV data from the response body
+	csvData, err := ioutil.ReadAll(downloadResponse.Body)
+	if err != nil {
+		fmt.Printf("Failed to read CSV data: %s\n", err)
+		return
+	}
+
+	// Save the CSV data to a file
+	err = ioutil.WriteFile("downloaded.csv", csvData, 0644)
+	if err != nil {
+		fmt.Printf("Failed to save CSV data: %s\n", err)
+		return
+	}
+
+	fmt.Println("CSV file downloaded successfully")
+
+}

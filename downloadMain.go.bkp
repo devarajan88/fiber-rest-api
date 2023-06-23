@@ -1,0 +1,80 @@
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/cookiejar"
+	"net/url"
+	"os"
+)
+
+func main() {
+	// Create a cookie jar to store cookies
+	cookieJar, _ := cookiejar.New(nil)
+
+	// Create an HTTP client with the cookie jar
+	client := &http.Client{
+		Jar: cookieJar,
+	}
+
+	username := "exportdev"
+	password := "repDEV2023!"
+
+	// Step 1: Perform the login request
+	loginURL := "https://my.callmanager.tel/login.html"
+	loginData := url.Values{}
+	loginData.Set("username", username)
+	loginData.Set("password", password)
+
+	// Perform the login request
+	loginRequest, err := http.NewRequest("GET", loginURL, nil)
+	if err != nil {
+		fmt.Printf("Failed to create login request: %s\n", err)
+		return
+	}
+	loginRequest.PostForm = loginData
+	loginResp, err := client.Do(loginRequest)
+	if err != nil {
+		fmt.Println("Login request failed:", err)
+		return
+	}
+	defer loginResp.Body.Close()
+
+	// Step 2: Check the response status code to verify successful login
+	if loginResp.StatusCode != http.StatusOK {
+		fmt.Println("Login failed. Status code:", loginResp.StatusCode)
+		return
+	}
+
+	// Step 3: Perform the file download request
+	downloadURL := "https://example.com/download"
+	downloadResp, err := client.Get(downloadURL)
+	if err != nil {
+		fmt.Println("File download request failed:", err)
+		return
+	}
+	defer downloadResp.Body.Close()
+
+	// Step 4: Check the response status code to verify successful download
+	if downloadResp.StatusCode != http.StatusOK {
+		fmt.Println("File download failed. Status code:", downloadResp.StatusCode)
+		return
+	}
+
+	// Step 5: Read the response body as CSV data
+	csvData, err := ioutil.ReadAll(downloadResp.Body)
+	if err != nil {
+		fmt.Println("Failed to read CSV data:", err)
+		return
+	}
+
+	// Step 6: Save the CSV data to a file
+	err = ioutil.WriteFile("data.csv", csvData, os.ModePerm)
+	if err != nil {
+		fmt.Println("Failed to save CSV file:", err)
+		return
+	}
+
+	fmt.Println("CSV file downloaded and saved successfully.")
+}
